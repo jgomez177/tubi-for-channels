@@ -162,6 +162,7 @@ class Client:
                      'url': f"{unquote(elem['video_resources'][0]['manifest']['url'])}&content_id={elem.get('content_id')}",
                      'tmsid': elem.get('gracenote_id', None)}
                      for elem in self.epg_data]
+
         
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
         tmsid_dict = {}
