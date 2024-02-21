@@ -154,7 +154,7 @@ def watch(provider, id):
 def epg_xml(provider, filename):
     
     ALLOWED_EPG_FILENAMES = ['epg.xml']
-    ALLOWED_GZ_FILENAMES = ['epg.xml']
+    ALLOWED_GZ_FILENAMES = ['epg.xml.gz']
 
     try:
         if filename not in ALLOWED_EPG_FILENAMES and filename not in ALLOWED_GZ_FILENAMES:

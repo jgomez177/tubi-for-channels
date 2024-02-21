@@ -163,15 +163,37 @@ class Client:
                      'tmsid': elem.get('gracenote_id', None)}
                      for elem in self.epg_data]
 
-        
+        tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid.csv"
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
+
         tmsid_dict = {}
+        tmsid_custom_dict = {}
+
+        # Fetch the CSV file from the URL
+        response = requests.get(tubi_tmsid_url)
+
+        # Check if request was successful
+        if response.status_code == 200:
+            # Read in the CSV data
+            reader = csv.DictReader(response.text.splitlines())
+        else:
+            # Use local cache instead
+            print("Failed to fetch the CSV file. Status code:", response.status_code)
+            print("Using local cached file.")
+            with open('tubi_tmsid.csv', mode='r') as file:
+                reader = csv.DictReader(file)
+
+        for row in reader:
+            tmsid_dict[row['id']] = row
+
         if os.path.exists(tubi_custom_tmsid):
             # File exists, open it
             with open(tubi_custom_tmsid, mode='r') as file:
                 reader = csv.DictReader(file)
                 for row in reader:
-                    tmsid_dict[row['id']] = row
+                    tmsid_custom_dict[row['id']] = row
+
+        tmsid_dict.update(tmsid_custom_dict)
 
         channels = [{**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid'], 'time_shift': tmsid_dict[entry["channel-id"]]['time_shift']}
                     if entry["channel-id"] in tmsid_dict and tmsid_dict[entry["channel-id"]]['time_shift'] != ''
