@@ -41,6 +41,5 @@ Create a file called `tubi_custom_tmsid.csv` with the following headers (case-se
 Example
 
     id,name,tmsid,time_shift
-    5e20b730f2f8d5003d739db7-63c1ec0e0aa23f984207af82,Ax Men by History,123425,-5
-
+    400000011,TV One Crime & Justice,145680,
 
