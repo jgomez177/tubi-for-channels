@@ -175,6 +175,7 @@ class Client:
         # Check if request was successful
         if response.status_code == 200:
             # Read in the CSV data
+            print("Read in file data from github")
             reader = csv.DictReader(response.text.splitlines())
         else:
             # Use local cache instead
