@@ -182,8 +182,8 @@ class Client:
             print("Using local cached file.")
             with open('tubi_tmsid.csv', mode='r') as file:
                 reader = csv.DictReader(file)
-                for row in reader:
-                    tmsid_dict[row['id']] = row
+        for row in reader:
+            tmsid_dict[row['id']] = row
 
         if os.path.exists(tubi_custom_tmsid):
             # File exists, open it
