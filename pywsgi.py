@@ -39,7 +39,7 @@ url = f'<!DOCTYPE html>\
             <div class="container">\
               <h1 class="title">\
                 {provider.capitalize()} Playlist\
-                <span class="tag">v0.91</span>\
+                <span class="tag">v0.93</span>\
               </h1>\
               <p class="subtitle">\
                 Last Updated: Feb 21, 2024\

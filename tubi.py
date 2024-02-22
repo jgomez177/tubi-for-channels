@@ -97,8 +97,8 @@ class Client:
         contentIdsByContainer = epg.get('contentIdsByContainer')
         skip_slugs = ['favorite_linear_channels', 'recommended_linear_channels', 'featured_channels', 'recently_added_channels']
         self.channel_list = [content for key in contentIdsByContainer.keys() for item in contentIdsByContainer[key] if item['container_slug'] not in skip_slugs for content in item["contents"]]
+        self.channel_list = list(set(self.channel_list))
         print(f'[INFO] Number of streams available: {len(self.channel_list)}')
-        # print(all_contents)
         self.sessionAt = time.time()
         return None
 
@@ -182,9 +182,8 @@ class Client:
             print("Using local cached file.")
             with open('tubi_tmsid.csv', mode='r') as file:
                 reader = csv.DictReader(file)
-
-        for row in reader:
-            tmsid_dict[row['id']] = row
+                for row in reader:
+                    tmsid_dict[row['id']] = row
 
         if os.path.exists(tubi_custom_tmsid):
             # File exists, open it
