@@ -43,3 +43,9 @@ Example
     id,name,tmsid,time_shift
     400000011,TV One Crime & Justice,145680,
 
+
+***
+
+If you like this and other linear containers for Channels that I have created, please consider supporting my work.
+
+[![](https://pics.paypal.com/00/s/MDY0MzZhODAtNGI0MC00ZmU5LWI3ODYtZTY5YTcxOTNlMjRm/file.PNG)](https://www.paypal.com/donate/?hosted_button_id=BBUTPEU8DUZ6J)
