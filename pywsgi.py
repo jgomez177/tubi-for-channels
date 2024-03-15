@@ -39,10 +39,10 @@ url = f'<!DOCTYPE html>\
             <div class="container">\
               <h1 class="title">\
                 {provider.capitalize()} Playlist\
-                <span class="tag">v0.93</span>\
+                <span class="tag">v1.00</span>\
               </h1>\
               <p class="subtitle">\
-                Last Updated: Feb 21, 2024\
+                Last Updated: March 15, 2024\
               '
 
 @app.route("/")
@@ -162,7 +162,7 @@ def epg_xml(provider, filename):
         # if filename not in ALLOWED_EPG_FILENAMES:
             return "Invalid filename", 400
         error = providers[provider].epg()
-        if error: return "Error in processing EPG Dataa", 400
+        if error: return "Error in processing EPG Data", 400
 
         # Specify the file path based on the provider and filename
         file_path = f'{filename}'
@@ -175,11 +175,40 @@ def epg_xml(provider, filename):
     except FileNotFoundError:
         return "XML file not found", 404
 
+# Define the function you want to execute with scheduler
+def epg_scheduler():
+    if all(item in ALLOWED_COUNTRY_CODES for item in plex_country_list):
+        for code in plex_country_list:
+            error = providers[provider].epg()
+            if error: print(f"{error}")
+
+
+# Define a function to run the scheduler in a separate thread
+def scheduler_thread():
+    while True:
+        try:
+            schedule.run_pending()
+            time.sleep(1)
+        except Exception as e:
+            print(f"[CRITICAL] Scheduler crashed: {e}. Restarting...")
+            # Restart scheduler
+            schedule.clear()
+            # Schedule the function to run at a given interval
+            schedule.every(4).hours.do(epg_scheduler)
 
 
 if __name__ == '__main__':
+    # Schedule the function to run at a given interval
+    schedule.every(4).hours.do(epg_scheduler)
+    print("[INFO] Initialize XML File")
+    error = providers[provider].epg()
+    if error: 
+        print(f"{error}")
     sys.stdout.write(f"⇨ http server started on [::]:{port}\n")
     try:
+        # Start the scheduler thread
+        thread = Thread(target=scheduler_thread)
+        thread.start()
         WSGIServer(('', port), app, log=None).serve_forever()
     except OSError as e:
         print(str(e))

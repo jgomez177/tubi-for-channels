@@ -1,9 +1,16 @@
 # Tubi for Channels
 
-Current version: **0.95**
+Current version: **1.00**
 
 # About
 This takes Tubi Live TV Channels and generates an M3U playlist and EPG XMLTV file.
+
+# Changes
+ - Version 1.00: 
+    - Main Release
+    - Added EPG Scheduler.
+    - Updates to Gracenote Mapping
+
 
 # Running
 The recommended way of running is to pull the image from [GitHub](https://github.com/jgomez177/tubi-for-channels/pkgs/container/tubi-for-channels).

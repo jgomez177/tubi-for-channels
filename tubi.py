@@ -106,7 +106,7 @@ class Client:
         if (time.time() - self.sessionAt) < 4 * 60 * 60:
             # print("[INFO] Time Check")
             if len(self.epg_data) > 0:
-                print("[INFO] Returning cached EPG Data")
+                # print("[INFO] Returning cached EPG Data")
                 return None
         
         print("[INFO] Retriving EPG Data")
@@ -175,12 +175,12 @@ class Client:
         # Check if request was successful
         if response.status_code == 200:
             # Read in the CSV data
-            print("Read in file data from github")
+            # print("[INFO] Read in file data from github")
             reader = csv.DictReader(response.text.splitlines())
         else:
             # Use local cache instead
-            print("Failed to fetch the CSV file. Status code:", response.status_code)
-            print("Using local cached file.")
+            print("[NOTIFICATION] Failed to fetch the CSV file. Status code:", response.status_code)
+            print("[NOTIFICATION] Using local cached file.")
             with open('tubi_tmsid.csv', mode='r') as file:
                 reader = csv.DictReader(file)
         for row in reader:
@@ -202,7 +202,7 @@ class Client:
                     for entry in channels]
         
         channels = sorted(channels, key=lambda x: x['name'].lower())
-        print(f"[INFO] Channels: Number of streams available: {len(channels)}")
+        # print(f"[INFO] Channels: Number of streams available: {len(channels)}")
         return channels, None
 
     def clear_data(self):
@@ -219,7 +219,7 @@ class Client:
 
     def epg(self):
         if (time.time() - self.sessionAt) < 4 * 60 * 60:
-            print("[INFO] Returning cached EPG File")
+            # print("[INFO] Returning cached EPG File")
             return None
 
         error = self.read_epg()
