@@ -177,10 +177,8 @@ def epg_xml(provider, filename):
 
 # Define the function you want to execute with scheduler
 def epg_scheduler():
-    if all(item in ALLOWED_COUNTRY_CODES for item in plex_country_list):
-        for code in plex_country_list:
-            error = providers[provider].epg()
-            if error: print(f"{error}")
+    error = providers[provider].epg()
+    if error: print(f"{error}")
 
 
 # Define a function to run the scheduler in a separate thread
