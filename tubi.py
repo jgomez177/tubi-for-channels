@@ -20,6 +20,7 @@ class Client:
                     # 'content-length': '0',
                     # 'origin': 'https://app.plex.tv',
                     # 'referer': 'https://app.plex.tv/',
+                    "X-Forwarded-For":"108.82.206.181"
                 }
 
         self.params = {
@@ -44,7 +45,7 @@ class Client:
     def channel_id_list(self):
         url = "https://tubitv.com/live"
         params = {}
-        headers = {}
+        headers = {"X-Forwarded-For":"108.82.206.181"}
 
         try:
             response = requests.get(url, params=params, headers=headers)
@@ -111,7 +112,7 @@ class Client:
         
         print("[INFO] Retriving EPG Data")
 
-        epg_headers =   {}
+        epg_headers =   {"X-Forwarded-For":"108.82.206.181"}
 
         # # Get the current time in the desired timezone
         # start_datetime = datetime.now(desired_timezone)
@@ -155,6 +156,12 @@ class Client:
             if error: return None, error
             error = self.read_epg()
             if error: return None, error
+        # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
+        for elem in self.epg_data:
+            if elem.get('video_resources') == []:
+                print(f"[Error] No Video Data for {elem.get('title', '')}")
+                elem['video_resources'] = [{"manifest": {"url": ""}}]
+
         print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
         channels = [{'channel-id': str(elem.get('content_id')),
                      'name': elem.get('title', ''),

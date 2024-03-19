@@ -140,6 +140,8 @@ def channels_clear(provider):
 
 @app.route("/<provider>/watch/<id>")
 def watch(provider, id):
+    video_url = ''
+
     stations, err = providers[provider].channels()
     if err is not None:
         return "Error", 500, {'X-Tuner-Error': err}
@@ -147,6 +149,9 @@ def watch(provider, id):
     for channel in stations:
         if channel['channel-id'] == id:
             video_url = channel['url']
+
+    if video_url == '':
+        return "Error", 500, {'X-Tuner-Error': 'Video Stream Not Found'}
 
     return (redirect(video_url))
 
