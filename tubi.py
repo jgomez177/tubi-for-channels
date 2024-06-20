@@ -170,7 +170,7 @@ class Client:
                      'tmsid': elem.get('gracenote_id', None)}
                      for elem in self.epg_data]
 
-        tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid.csv"
+        tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid_1.csv"
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
 
         tmsid_dict = {}
