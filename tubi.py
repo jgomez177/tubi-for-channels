@@ -20,7 +20,6 @@ class Client:
                     # 'content-length': '0',
                     # 'origin': 'https://app.plex.tv',
                     # 'referer': 'https://app.plex.tv/',
-                    "X-Forwarded-For":"108.82.206.181"
                 }
 
         self.params = {
@@ -45,7 +44,7 @@ class Client:
     def channel_id_list(self):
         url = "https://tubitv.com/live"
         params = {}
-        headers = {"X-Forwarded-For":"108.82.206.181"}
+        headers = {}
 
         try:
             response = requests.get(url, params=params, headers=headers)
@@ -112,8 +111,6 @@ class Client:
         
         print("[INFO] Retriving EPG Data")
 
-        epg_headers =   {"X-Forwarded-For":"108.82.206.181"}
-
         # # Get the current time in the desired timezone
         # start_datetime = datetime.now(desired_timezone)
         # # start_time = quote(start_datetime.strftime("%Y-%m-%d %H:00:00.000Z"))
@@ -171,6 +168,7 @@ class Client:
                      for elem in self.epg_data]
 
         tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid_1.csv"
+        tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid.csv"
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
 
         tmsid_dict = {}
@@ -204,7 +202,7 @@ class Client:
 
         channels = [{**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid'], 'time_shift': tmsid_dict[entry["channel-id"]]['time_shift']}
                     if entry["channel-id"] in tmsid_dict and tmsid_dict[entry["channel-id"]]['time_shift'] != ''
-                    else {**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid']} if entry["channel-id"] in tmsid_dict and tmsid_dict[entry["channel-id"]]['tmsid'] != ''
+                    else {**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid']} if entry["channel-id"] in tmsid_dict
                     else entry
                     for entry in channels]
         
