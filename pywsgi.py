@@ -39,10 +39,10 @@ url = f'<!DOCTYPE html>\
             <div class="container">\
               <h1 class="title">\
                 {provider.capitalize()} Playlist\
-                <span class="tag">v1.02</span>\
+                <span class="tag">v1.03</span>\
               </h1>\
               <p class="subtitle">\
-                Last Updated: July 2, 2024\
+                Last Updated: July 29, 2024\
               '
 
 @app.route("/")
@@ -80,6 +80,7 @@ def playlist(provider):
     host = request.host
 
     stations, err = providers[provider].channels()
+    if err: return err, 500
     # Filter out Hidden items or items without Hidden Attribute
     tmsid_stations = list(filter(lambda d: d.get('tmsid'), stations))
     no_tmsid_stations = list(filter(lambda d: d.get('tmsid', "") == "" or d.get('tmsid') is None, stations))
@@ -94,8 +95,7 @@ def playlist(provider):
 
     stations = sorted(stations, key = lambda i: i.get('name', ''))
 
-    if err is not None:
-        return err, 500
+    if err: return err, 500
     m3u = "#EXTM3U\r\n\r\n"
     for s in data_group:
         m3u += f"#EXTINF:-1 channel-id=\"{provider}-{s.get('channel-id')}\""
