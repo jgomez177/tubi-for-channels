@@ -131,7 +131,13 @@ class Client:
             session = requests.Session()
             params = {"content_id": ','.join(map(str, group))}
 
-            response = session.get(f'https://tubitv.com/oz/epg/programming', params=params)
+
+            try:
+                response = session.get(f'https://tubitv.com/oz/epg/programming', params=params)
+                # r = requests.get(url, params=params, headers=headers, timeout=10)
+            except Exception as e:
+                return None, f"read_epg Exception type Error: {type(e).__name__}"    
+
             if (response.status_code != 200):
                 return None, f"tubitv.com/oz/epg HTTP failure for {group} {response.status_code}: {response.text}"
 

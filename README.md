@@ -1,11 +1,13 @@
 # Tubi for Channels
 
-Current version: **1.02**
+Current version: **1.03a**
 
 # About
 This takes Tubi Live TV Channels and generates an M3U playlist and EPG XMLTV file.
 
 # Changes
+ - Version 1.03a: 
+    - More error handling
  - Version 1.03: 
     - Added additional error handling
  - Version 1.02: 
