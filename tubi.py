@@ -226,12 +226,12 @@ class Client:
                 elem['video_resources'] = [{"manifest": {"url": ""}}]
 
         print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
-        channels = [{'channel-id': str(elem.get('content_id')),
-                     'name': elem.get('title', ''),
-                     'logo': elem['images'].get('thumbnail'),
-                     'url': f"{unquote(elem['video_resources'][0]['manifest']['url'])}&content_id={elem.get('content_id')}",
-                     'tmsid': elem.get('gracenote_id', None)}
-                     for elem in self.epg_data]
+        channel_list = [{'channel-id': str(elem.get('content_id')),
+                         'name': elem.get('title', ''),
+                         'logo': elem['images'].get('thumbnail'),
+                         'url': f"{unquote(elem['video_resources'][0]['manifest']['url'])}&content_id={elem.get('content_id')}",
+                         'tmsid': elem.get('gracenote_id', None)}
+                         for elem in self.epg_data]
 
         tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid.csv"
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
@@ -271,9 +271,9 @@ class Client:
                         if entry["channel-id"] in tmsid_dict and tmsid_dict[entry["channel-id"]]['time_shift'] != ''
                         else {**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid']} if entry["channel-id"] in tmsid_dict
                         else entry
-                        for entry in channels]
+                        for entry in channel_list]
         
-        channel_list = sorted(channels, key=lambda x: x['name'].lower())
+        channel_list = sorted(channel_list, key=lambda x: x['name'].lower())
         # print(f"[INFO] Channels: Number of streams available: {len(channel_list)}")
         return channel_list, error
     
