@@ -1,42 +1,135 @@
-import secrets, requests, json, re, time, pytz, gzip, csv, os
+import json, os, uuid, time, requests, csv, re, pytz, gzip
+from urllib.parse import unquote
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+
+# import requests, json, re, time, pytz, gzip, csv, os
+# from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
-from urllib.parse import unquote
 
 class Client:
     def __init__(self):
-        self.session = requests.Session()
-        self.load_device()
+        self.token_sessionAt = 0
+        self.token_expires_in = 0
+        self.tokenResponse = None
+        self.sessionAt = 0
         self.channel_list = []
-        self.country_stations = {}
+        self.aacess_token = None
+
         self.sessionAt = 0
         self.epg_data = []
 
-        self.headers = {
-                    # 'authority': 'clients.plex.tv',
-                    # 'accept': 'application/json, text/javascript, */*; q=0.01',
-                    # 'accept-language': 'en',
-                    # 'content-length': '0',
-                    # 'origin': 'https://app.plex.tv',
-                    # 'referer': 'https://app.plex.tv/',
-                }
 
-        self.params = {
-                    # 'X-Plex-Product': 'Plex Web',
-                    # 'X-Plex-Version': '4.120.1',
-                    # 'X-Plex-Client-Identifier': self.device,
-                    # 'X-Plex-Language': 'en',
-                }
+        self.user = os.environ.get("TUBI_USER")
+        self.passwd = os.environ.get("TUBI_PASS")
+
+        self.load_device()
+        self.anonymous_access = self.set_anonymous_tag()
+
+        self.headers = {
+            'accept': '*/*',
+            'accept-language': 'en-US',
+            'content-type': 'application/json',
+            'origin': 'https://tubitv.com',
+            'priority': 'u=1, i',
+            'referer': 'https://tubitv.com/',
+            'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'cross-site',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        }
+
+    def set_anonymous_tag(self):
+        if self.user is None or self.passwd is None:
+            print("[WARNING] TUBI_USER is not set. Running with anonymous credentials.")
+            anonymous_access = True
+        else:
+            anonymous_access = False
+        return anonymous_access
+
+    def is_uuid4(self, string):
+        try:
+            uuid_obj = uuid.UUID(string, version=4)
+            return str(uuid_obj) == string
+        except ValueError:
+            return False
 
     def load_device(self):
+        device_file = "tubi-device.json"
         try:
-            with open("tubi-device.json", "r") as f:
-                self.device = json.load(f)
+            with open(device_file, "r") as f:
+                self.device_id = json.load(f)
         except FileNotFoundError:
-            self.device = secrets.token_hex(12)
-            with open("tubi-device.json", "w") as f:
-                json.dump(self.device, f)
+            self.device_id = str(uuid.uuid4())
+            with open(device_file, "w") as f:
+                json.dump(self.device_id, f)
+            print(f"[INFO] Device ID Generated")
+        is_valid_uuid4 = self.is_uuid4(self.device_id)
+        if not is_valid_uuid4:
+            print(f"[WARNING] Device ID Not Valid: {self.device_id}")
+            print(f"[WARNING] Reload Device ID")
+            os.remove(device_file)
+            self.load_device()
+        else:
+            print(f"[INFO] Device ID: {self.device_id}")
+
+    def isTimeExpired(self, sessionAt, age):
+        return ((time.time() - sessionAt) >= age)
+
+    def token(self):
+        # self.token_expires_in = (30) #--- Test Time
+        if self.anonymous_access: return None
+        json_data = {
+            'type': 'email',
+            'platform': 'web',
+            'device_id': self.device_id,
+            'credentials': {
+                'email': self.user,
+                'password': self.passwd
+            },
+            'errorLog': False,
+        }
+
+        error = None
+        # print(json.dumps(json_data, indent = 2))
+
+        if self.isTimeExpired(self.token_sessionAt, self.token_expires_in) or (self.tokenResponse is None):
+            print("[INFO] Update Token via API Call")
+            print("[INFO] Update token_sessionAt")
+            self.token_sessionAt = time.time()
+            try:
+                session = requests.Session()
+                self.tokenResponse = session.post('https://account.production-public.tubi.io/user/login', json=json_data, headers=self.headers)
+            except requests.ConnectionError as e:
+                error = f"Connection Error. {str(e)}"
+            finally:
+                # print(error)
+                # print(data)
+                print('[INFO] Close the Signin API session')
+                session.close()
+        else:
+            print("[INFO] Return Token")
+        
+        if error:
+            print(error)
+            return error
+
+        if self.tokenResponse.status_code != 200:
+            print(f"HTTP: {self.tokenResponse.status_code}: {self.tokenResponse.text}")
+            return None
+        else:
+            resp = self.tokenResponse.json()
+
+        self.access_token = resp.get('access_token', None)
+        resp.get('expires_in', 0)
+
+        self.token_expires_in = resp.get('expires_in', self.token_expires_in)
+        print(f"[INFO] Token Expires IN: {self.token_expires_in}")
+
+        return self.access_token
 
     def replace_quotes(self, match):
         return '"' + match.group(1).replace('"', r'\"') + '"'
@@ -44,13 +137,24 @@ class Client:
     def channel_id_list(self):
         url = "https://tubitv.com/live"
         params = {}
-        headers = {}
+        error = None
+        headers = self.headers
+        if not self.anonymous_access:
+            headers.update({'authorization': f"Bearer {self.token()}"})
 
+        # print(json.dumps(headers, indent = 2))
         try:
-            response = requests.get(url, params=params, headers=headers)
+            session = requests.Session()
+            response = session.get(url, params=params, headers=headers)
         except Exception as e:
-            return (f"read_from_tubi Exception type Error: {type(e).__name__}")    
+            error = f"read_from_tubi Exception type Error: {type(e).__name__}"
+        finally:
+            # print(error)
+            # print(data)
+            print('[INFO] Close the Signin API session')
+            session.close()
 
+        if error: return error
         if (response.status_code != 200):
             return (f"tubitv.com/live HTTP failure {response.status_code}: {response.text}")
         
@@ -102,54 +206,9 @@ class Client:
         self.sessionAt = time.time()
         return None
 
-    def read_epg(self):
-        if (time.time() - self.sessionAt) < 4 * 60 * 60:
-            # print("[INFO] Time Check")
-            if len(self.epg_data) > 0:
-                # print("[INFO] Returning cached EPG Data")
-                return None
-        
-        print("[INFO] Retriving EPG Data")
-
-        # # Get the current time in the desired timezone
-        # start_datetime = datetime.now(desired_timezone)
-        # # start_time = quote(start_datetime.strftime("%Y-%m-%d %H:00:00.000Z"))
-        # start_time = start_datetime.strftime("%Y-%m-%d")
-
-        if len(self.channel_list ) == 0:
-            print("[INFO] Initialize channel_list")
-            error = self.channel_id_list()
-            if error: return error
-
-        epg_data = []
-
-        group_size = 150
-        grouped_id_values = [self.channel_list[i:i + group_size] for i in range(0, len(self.channel_list), group_size)]
-        root = ET.Element("tv", attrib={"generator-info-name": "jgomez177", "generated-ts": ""})
-
-        for group in grouped_id_values:
-            session = requests.Session()
-            params = {"content_id": ','.join(map(str, group))}
-
-
-            try:
-                response = session.get(f'https://tubitv.com/oz/epg/programming', params=params)
-                # r = requests.get(url, params=params, headers=headers, timeout=10)
-            except Exception as e:
-                return None, f"read_epg Exception type Error: {type(e).__name__}"    
-
-            if (response.status_code != 200):
-                return None, f"tubitv.com/oz/epg HTTP failure for {group} {response.status_code}: {response.text}"
-
-            js = response.json()
-            epg_data.extend(js.get('rows',[]))
-        
-        self.epg_data = epg_data
-
-        return None
-
     def channels(self):
-        if (time.time() - self.sessionAt) > 4 * 60 * 60:
+        error = None
+        if not (self.isTimeExpired(self.token_sessionAt, self.token_expires_in)):
             print("[INFO] Reading channel id list cache")
             error = self.read_epg()
             if error: return None, error
@@ -160,6 +219,7 @@ class Client:
             error = self.read_epg()
             if error: return None, error
         # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
+        
         for elem in self.epg_data:
             if elem.get('video_resources') == []:
                 print(f"[Error] No Video Data for {elem.get('title', '')}")
@@ -173,7 +233,6 @@ class Client:
                      'tmsid': elem.get('gracenote_id', None)}
                      for elem in self.epg_data]
 
-        tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid_1.csv"
         tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid.csv"
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
 
@@ -181,7 +240,9 @@ class Client:
         tmsid_custom_dict = {}
 
         # Fetch the CSV file from the URL
-        response = requests.get(tubi_tmsid_url)
+        with requests.Session() as session:
+            response = session.get(tubi_tmsid_url)
+            # print(response.text)
 
         # Check if request was successful
         if response.status_code == 200:
@@ -206,28 +267,56 @@ class Client:
 
         tmsid_dict.update(tmsid_custom_dict)
 
-        channels = [{**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid'], 'time_shift': tmsid_dict[entry["channel-id"]]['time_shift']}
-                    if entry["channel-id"] in tmsid_dict and tmsid_dict[entry["channel-id"]]['time_shift'] != ''
-                    else {**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid']} if entry["channel-id"] in tmsid_dict
-                    else entry
-                    for entry in channels]
+        channel_list = [{**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid'], 'time_shift': tmsid_dict[entry["channel-id"]]['time_shift']}
+                        if entry["channel-id"] in tmsid_dict and tmsid_dict[entry["channel-id"]]['time_shift'] != ''
+                        else {**entry, 'tmsid': tmsid_dict[entry["channel-id"]]['tmsid']} if entry["channel-id"] in tmsid_dict
+                        else entry
+                        for entry in channels]
         
-        channels = sorted(channels, key=lambda x: x['name'].lower())
-        # print(f"[INFO] Channels: Number of streams available: {len(channels)}")
-        return channels, None
-
-    def clear_data(self):
-        self.channel_list = []
-        self.sessionAt = 0
-        self.epg_data = []
-        return
-
-    def epg_json(self):
-        error = self.read_epg()
-        if error: return error
-        return sorted(self.epg_data, key = lambda i: i.get('title', '')), error
+        channel_list = sorted(channels, key=lambda x: x['name'].lower())
+        # print(f"[INFO] Channels: Number of streams available: {len(channel_list)}")
+        return channel_list, error
     
+    def read_epg(self):
+        if (time.time() - self.sessionAt) < 4 * 60 * 60:
+            # print("[INFO] Time Check")
+            if len(self.epg_data) > 0:
+                # print("[INFO] Returning cached EPG Data")
+                return None
+        
+        print("[INFO] Retriving EPG Data")
 
+        if len(self.channel_list ) == 0:
+            print("[INFO] Initialize channel_list")
+            error = self.channel_id_list()
+            if error: return error
+
+        epg_data = []
+
+        group_size = 150
+        grouped_id_values = [self.channel_list[i:i + group_size] for i in range(0, len(self.channel_list), group_size)]
+
+        for group in grouped_id_values:
+            session = requests.Session()
+            params = {"content_id": ','.join(map(str, group))}
+
+
+            try:
+                response = session.get(f'https://tubitv.com/oz/epg/programming', params=params)
+                # r = requests.get(url, params=params, headers=headers, timeout=10)
+            except Exception as e:
+                return f"read_epg Exception type Error: {type(e).__name__}"    
+
+            if (response.status_code != 200):
+                return f"tubitv.com/oz/epg HTTP failure for {group} {response.status_code}: {response.text}"
+
+            js = response.json()
+            epg_data.extend(js.get('rows',[]))
+        
+        self.epg_data = epg_data
+
+        return None
+    
     def epg(self):
         if (time.time() - self.sessionAt) < 4 * 60 * 60:
             # print("[INFO] Returning cached EPG File")
@@ -242,8 +331,11 @@ class Client:
         # Set your desired timezone, for example, 'UTC'
         desired_timezone = pytz.timezone('UTC')
 
-
-        root = ET.Element("tv", attrib={"generator-info-name": "jgomez177", "generated-ts": ""})
+        if self.user:
+            g_name = self.user
+        else:
+            g_name = ''
+        root = ET.Element("tv", attrib={"generator-info-name": g_name, "generated-ts": ""})
 
         stations = sorted(self.epg_data, key = lambda i: i.get('title', ''))
 
@@ -259,8 +351,6 @@ class Client:
             program_data = station['programs']
             for program in program_data:
                 root = self.create_programme_element(program, channel_id, root)
-
-        
 
         # root = self.read_epg_data(root)
 

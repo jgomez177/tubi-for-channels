@@ -5,14 +5,16 @@ import subprocess, os, sys, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-port = os.environ.get("TUBI_PORT")
-if port is None:
+version = "2.00"
+updated_date = "Jan. 16, 2025"
+
+# Retrieve the port number from env variables
+# Fallback to default if invalid or unspecified
+try:
+    port = int(os.environ.get("TUBI_PORT", 7777))
+except:
     port = 7777
-else:
-    try:
-        port = int(port)
-    except:
-        port = 7777
+
 
 # instance of flask application
 app = Flask(__name__)
@@ -39,10 +41,10 @@ url = f'<!DOCTYPE html>\
             <div class="container">\
               <h1 class="title">\
                 {provider.capitalize()} Playlist\
-                <span class="tag">v1.03a</span>\
+                <span class="tag">v{version}</span>\
               </h1>\
               <p class="subtitle">\
-                Last Updated: August 3, 2024\
+                Last Updated: {updated_date}\
               '
 
 @app.route("/")
@@ -63,14 +65,14 @@ def index():
 
     return f"{url}<ul>{ul}</ul></div></section></body></html>"
 
-@app.route("/channels/")
-def channels():
+@app.route("/<provider>/token/")
+def token(provider):
     # host = request.host
-    channel, error = providers[provider].channels()
-    if error is not None:
-        return(channel)
+    token = providers[provider].token()
+    if token is None:
+        return("Using Anonymous Access")
     else:
-        return(error)
+        return token
 
 @app.get("/<provider>/playlist.m3u")
 def playlist(provider):

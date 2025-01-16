@@ -1,11 +1,14 @@
 # Tubi for Channels
 
-Current version: **1.03a**
+Current version: **2.00**
 
 # About
 This takes Tubi Live TV Channels and generates an M3U playlist and EPG XMLTV file.
 
 # Changes
+ - Version 2.00: 
+    - Included support for email signin (not Google authentication)
+    - Additional Updates
  - Version 1.03a: 
     - More error handling
  - Version 1.03: 
@@ -36,6 +39,8 @@ You can retrieve the playlist and EPG via the status page.
 | Environment Variable | Description | Default |
 |---|---|---|
 | TUBI_PORT | Port the API will be served on. You can set this if it conflicts with another service in your environment. | 7777 |
+| TUBI_USER | Optional variable to sign into Tubi Account. | None |
+| TUBI_PASS | Optional variable to sign into Tubi Account. | None |
 
 ## Additional URL Parameters
 | Parameter | Description |
