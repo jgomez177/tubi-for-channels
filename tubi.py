@@ -13,11 +13,12 @@ class Client:
         self.token_expires_in = 0
         self.tokenResponse = None
         self.sessionAt = 0
+        self.session_expires_in = 1209600
+
         self.channel_list = []
         self.channel_cache = []
-        self.aacess_token = None
+        self.access_token = None
 
-        self.sessionAt = 0
         self.epg_data = []
 
 
@@ -26,7 +27,6 @@ class Client:
 
         self.load_device()
         self.anonymous_access = self.set_anonymous_tag()
-
         self.headers = {
             'accept': '*/*',
             'accept-language': 'en-US',
@@ -78,10 +78,10 @@ class Client:
             print(f"[INFO] Device ID: {self.device_id}")
 
     def isTimeExpired(self, sessionAt, age):
+        # print ((time.time() - sessionAt), age)
         return ((time.time() - sessionAt) >= age)
 
     def token(self):
-        # self.token_expires_in = (30) #--- Test Time
         if self.anonymous_access: return None
         json_data = {
             'type': 'email',
@@ -128,6 +128,8 @@ class Client:
         resp.get('expires_in', 0)
 
         self.token_expires_in = resp.get('expires_in', self.token_expires_in)
+        self.session_expires_in = self.token_expires_in
+
         print(f"[INFO] Token Expires IN: {self.token_expires_in}")
 
         return self.access_token
@@ -278,7 +280,7 @@ class Client:
         return self.channel_cache, error
     
     def read_epg(self):
-        if (time.time() - self.sessionAt) < 4 * 60 * 60:
+        if self.isTimeExpired(self.sessionAt, self.session_expires_in):
             # print("[INFO] Time Check")
             if len(self.epg_data) > 0:
                 # print("[INFO] Returning cached EPG Data")
@@ -318,7 +320,7 @@ class Client:
         return None
     
     def epg(self):
-        if (time.time() - self.sessionAt) < 4 * 60 * 60:
+        if self.isTimeExpired(self.sessionAt, self.session_expires_in):
             # print("[INFO] Returning cached EPG File")
             return None
 
