@@ -209,7 +209,7 @@ class Client:
 
     def channels(self):
         error = None
-        if not (self.isTimeExpired(self.token_sessionAt, self.token_expires_in)):
+        if (not (self.isTimeExpired(self.token_sessionAt, self.token_expires_in)) and len(self.channel_cache) != 0):
             print("[INFO] Reading channel id list cache")
             return self.channel_cache, None
         else:
