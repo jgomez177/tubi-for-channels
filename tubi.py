@@ -210,8 +210,7 @@ class Client:
         error = None
         if not (self.isTimeExpired(self.token_sessionAt, self.token_expires_in)):
             print("[INFO] Reading channel id list cache")
-            error = self.read_epg()
-            if error: return None, error
+            return self.channel_list, None
         else:
             print("[INFO] Updating channel id list")
             error = self.channel_id_list()
@@ -273,9 +272,9 @@ class Client:
                         else entry
                         for entry in channel_list]
         
-        channel_list = sorted(channel_list, key=lambda x: x['name'].lower())
+        self.channel_list = sorted(channel_list, key=lambda x: x['name'].lower())
         # print(f"[INFO] Channels: Number of streams available: {len(channel_list)}")
-        return channel_list, error
+        return self.channel_list, error
     
     def read_epg(self):
         if (time.time() - self.sessionAt) < 4 * 60 * 60:
