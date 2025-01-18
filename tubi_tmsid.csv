@@ -1,8 +1,11 @@
 id,name,tmsid,time_shift
+400000012,ACCDN,124806
 653208,Always Funny,134109,
 715950,At the Movies,170368
-571664,Bloomberg Originals,120439,
+555124,Bloomberg TV+,71799
+571664,Bloomberg Originals,123870,
 555130,CBC News,124721,
+555126,Cheddar,107241
 715949,Crime Scenes,169318
 400000056,Ebony TV by Lionsgate,146144,
 715948,Family Unscripted,169317
@@ -16,7 +19,6 @@ id,name,tmsid,time_shift
 400000067,Living with Evil,170382
 715947,Love & Marriage,138034
 670605,Love Quest,149920
-613765,MLB,135239
 400000108,MotorTrend FAST TV,126737
 715946,Mysterious Worlds,169313
 400000105,Nash Bridges,158128
@@ -26,6 +28,7 @@ id,name,tmsid,time_shift
 400000072,On the Telly,169610
 715939,Paws and Claws,169312
 400000004,Revolt Mixtape,129774,
+578086,Scripps News,120010
 715938,Sweet Escapes,169611,
 702891,The Jack Hanna Channel,132922,
 700412,Total Crime,131220
