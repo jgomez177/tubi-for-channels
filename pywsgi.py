@@ -218,7 +218,7 @@ if __name__ == '__main__':
         print("[INFO] Start the scheduler thread")
         thread = Thread(target=scheduler_thread)
         thread.start()
-        print("[INFO] ⇨ http server started on [::]:{port}")
+        print(f"[INFO] ⇨ http server started on [::]:{port}")
         WSGIServer(('', port), app, log=None).serve_forever()
     except OSError as e:
         print(str(e))
