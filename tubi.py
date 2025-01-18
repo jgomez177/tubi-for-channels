@@ -304,6 +304,7 @@ class Client:
 
 
             try:
+                print("[INFO] EPG API Call")
                 response = session.get(f'https://tubitv.com/oz/epg/programming', params=params)
                 # r = requests.get(url, params=params, headers=headers, timeout=10)
             except Exception as e:
@@ -320,12 +321,15 @@ class Client:
         return None
     
     def epg(self):
-        if self.isTimeExpired(self.sessionAt, self.session_expires_in):
-            # print("[INFO] Returning cached EPG File")
-            return None
-
-        error = self.read_epg()
-        if error: return error
+        print("[INFO] Running EPG")
+        #if self.isTimeExpired(self.sessionAt, self.session_expires_in):
+        #    print("[INFO] isTimeExpired TRUE")
+        #    return None
+        
+        if len(self.epg_data) == 0:
+            error = self.read_epg()
+            print("[INFO] End Read EPG")
+            if error: return error
 
         xml_file_path        = f"epg.xml"
         compressed_file_path = f"{xml_file_path}.gz"
@@ -380,6 +384,8 @@ class Client:
 
         output_content = xml_declaration + '\n' + doctype + '\n' + ET.tostring(root, encoding='utf-8').decode('utf-8')
 
+        print("[INFO] Write XML")
+
         # Write the concatenated content to the output file
         try:
             with open(xml_file_path, "w", encoding='utf-8') as f:
@@ -396,6 +402,7 @@ class Client:
             with gzip.open(compressed_file_path, 'wb') as compressed_file:
                 compressed_file.writelines(file)
 
+        print("[INFO] End EPG")
         return None
 
     def create_programme_element(self, program_data, channel_id, root):

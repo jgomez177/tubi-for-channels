@@ -1,12 +1,12 @@
 from gevent.pywsgi import WSGIServer
 from flask import Flask, redirect, request, Response, send_file
 from threading import Thread
-import subprocess, os, sys, importlib, schedule, time
+import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "2.00"
-updated_date = "Jan. 16, 2025"
+version = "2.01"
+updated_date = "Jan. 17, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -205,15 +205,20 @@ def scheduler_thread():
 if __name__ == '__main__':
     # Schedule the function to run at a given interval
     schedule.every(4).hours.do(epg_scheduler)
-    print("[INFO] Initialize XML File")
+
+    print("[INFO] Initialize Channel List")
+    stations, error = providers[provider].channels()
+    if error: print(f"{error}")
+    print("[INFO] Initialize EPG XML")
     error = providers[provider].epg()
     if error: 
         print(f"{error}")
-    sys.stdout.write(f"⇨ http server started on [::]:{port}\n")
     try:
         # Start the scheduler thread
+        print("[INFO] Start the scheduler thread")
         thread = Thread(target=scheduler_thread)
         thread.start()
+        print("[INFO] ⇨ http server started on [::]:{port}")
         WSGIServer(('', port), app, log=None).serve_forever()
     except OSError as e:
         print(str(e))
