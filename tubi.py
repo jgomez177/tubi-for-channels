@@ -1,4 +1,4 @@
-import json, os, uuid, time, requests, csv, re, pytz, gzip
+import json, os, uuid, time, requests, csv, re, pytz, gzip, threading
 from urllib.parse import unquote
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 
 class Client:
     def __init__(self):
+        self.lock = threading.Lock()
         self.token_sessionAt = 0
         self.token_expires_in = 0
         self.tokenResponse = None
@@ -216,9 +217,7 @@ class Client:
             return self.channel_cache, None
         else:
             print("[INFO] Updating channel id list")
-            error = self.channel_id_list()
-            if error: return None, error
-            error = self.read_epg()
+            error = self.epg()
             if error: return None, error
         # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
         
@@ -315,12 +314,15 @@ class Client:
 
             js = response.json()
             epg_data.extend(js.get('rows',[]))
-        
-        self.epg_data = epg_data
+
+        with self.lock:
+            print("[INFO] Saving EPG Data")            
+            self.epg_data = epg_data
 
         return None
     
     def epg(self):
+        print("[INFO] Call EPG Function")
         if not self.isTimeExpired(self.sessionAt, self.session_expires_in):
             print("[INFO] Return Cached EPG")
             return None
@@ -332,6 +334,8 @@ class Client:
         xml_file_path        = f"epg.xml"
         compressed_file_path = f"{xml_file_path}.gz"
 
+
+        local_epg_data = self.epg_data.copy()
         # Set your desired timezone, for example, 'UTC'
         desired_timezone = pytz.timezone('UTC')
 
@@ -341,7 +345,7 @@ class Client:
             g_name = ''
         root = ET.Element("tv", attrib={"generator-info-name": g_name, "generated-ts": ""})
 
-        stations = sorted(self.epg_data, key = lambda i: i.get('title', ''))
+        stations = sorted(local_epg_data, key = lambda i: i.get('title', ''))
 
 
         for station in stations:
