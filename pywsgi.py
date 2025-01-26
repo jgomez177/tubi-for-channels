@@ -5,8 +5,8 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "2.01"
-updated_date = "Jan. 17, 2025"
+version = "2.02"
+updated_date = "Jan. 26, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -184,41 +184,60 @@ def epg_xml(provider, filename):
 
 # Define the function you want to execute with scheduler
 def epg_scheduler():
-    error = providers[provider].epg()
-    if error: print(f"{error}")
+    print(f"[INFO] Running EPG Scheduler")
 
+    try:
+        stations, err = providers[provider].channels()
+        if err: print(f"[ERROR] Channels: {error}")
+        error = providers[provider].epg()
+        if error:
+            print(f"[ERROR] EPG: {error}")
+    except Exception as e:
+        print(f"[ERROR] Exception in EPG Scheduler : {e}")
+    print(f"[INFO] EPG Scheduler Complete")
 
 # Define a function to run the scheduler in a separate thread
 def scheduler_thread():
+
+    # Define a task for this country
+    schedule.every(2).hours.do(epg_scheduler)
+
+    # Run the task immediately when the thread starts
+    try:
+        epg_scheduler()
+    except Exception as e:
+        print(f"[ERROR] Error running initial task for: {e}")
+
+    # Continue as Scheduled
     while True:
         try:
             schedule.run_pending()
             time.sleep(1)
         except Exception as e:
-            print(f"[CRITICAL] Scheduler crashed: {e}. Restarting...")
-            # Restart scheduler
-            schedule.clear()
-            # Schedule the function to run at a given interval
-            schedule.every(4).hours.do(epg_scheduler)
+             print(f"[ERROR] Error in scheduler thread: {e}")
+
+# Function to monitor and restart the thread if needed
+def monitor_thread():
+    def thread_wrapper():
+        print(f"[INFO] Starting Scheduler thread")
+        scheduler_thread()
+
+    thread = Thread(target=thread_wrapper, daemon=True)
+    thread.start()
+
+    while True:
+        if not thread.is_alive():
+            print(f"[ERROR] Scheduler thread stopped. Restarting...")
+            thread = Thread(target=thread_wrapper, daemon=True)
+            thread.start()
+        time.sleep(15 * 60)  # Check every 15 minutes
+        # print(f"[INFO] Checking scheduler thread for {country_code}")
 
 
 if __name__ == '__main__':
-    # Schedule the function to run at a given interval
-    schedule.every(4).hours.do(epg_scheduler)
-
-    print("[INFO] Initialize Channel List")
-    stations, error = providers[provider].channels()
-    if error: print(f"{error}")
-    print("[INFO] Initialize EPG XML")
-    error = providers[provider].epg()
-    if error: 
-        print(f"{error}")
     try:
-        # Start the scheduler thread
-        print("[INFO] Start the scheduler thread")
-        thread = Thread(target=scheduler_thread)
-        thread.start()
-        print(f"[INFO] ⇨ http server started on [::]:{port}")
+        Thread(target=monitor_thread, daemon=True).start()
+        print(f"⇨ http server started on [::]:{port}")
         WSGIServer(('', port), app, log=None).serve_forever()
     except OSError as e:
         print(str(e))

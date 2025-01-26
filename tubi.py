@@ -211,7 +211,7 @@ class Client:
 
     def channels(self):
         error = None
-        if (not (self.isTimeExpired(self.token_sessionAt, self.token_expires_in)) and len(self.channel_cache) != 0):
+        if (not (self.isTimeExpired(self.sessionAt, self.session_expires_in)) and len(self.channel_cache) != 0):
             print("[INFO] Reading channel id list cache")
             return self.channel_cache, None
         else:
@@ -280,10 +280,10 @@ class Client:
         return self.channel_cache, error
     
     def read_epg(self):
-        if self.isTimeExpired(self.sessionAt, self.session_expires_in):
+        if not (self.isTimeExpired(self.sessionAt, self.session_expires_in)):
             # print("[INFO] Time Check")
             if len(self.epg_data) > 0:
-                # print("[INFO] Returning cached EPG Data")
+                print("[INFO] Returning cached EPG Data")
                 return None
         
         print("[INFO] Retriving EPG Data")
@@ -321,15 +321,13 @@ class Client:
         return None
     
     def epg(self):
-        print("[INFO] Running EPG")
-        #if self.isTimeExpired(self.sessionAt, self.session_expires_in):
-        #    print("[INFO] isTimeExpired TRUE")
-        #    return None
+        if not self.isTimeExpired(self.sessionAt, self.session_expires_in):
+            print("[INFO] Return Cached EPG")
+            return None
         
-        if len(self.epg_data) == 0:
-            error = self.read_epg()
-            print("[INFO] End Read EPG")
-            if error: return error
+        error = self.read_epg()
+        print("[INFO] End Read EPG")
+        if error: return error
 
         xml_file_path        = f"epg.xml"
         compressed_file_path = f"{xml_file_path}.gz"
