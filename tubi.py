@@ -204,10 +204,25 @@ class Client:
         epg = data_json.get('epg')
         contentIdsByContainer = epg.get('contentIdsByContainer')
         skip_slugs = ['favorite_linear_channels', 'recommended_linear_channels', 'featured_channels', 'recently_added_channels']
-        self.channel_list = [content for key in contentIdsByContainer.keys() for item in contentIdsByContainer[key] if item['container_slug'] not in skip_slugs for content in item["contents"]]
-        self.channel_list = list(set(self.channel_list))
-        print(f'[INFO] Number of streams available: {len(self.channel_list)}')
-        self.sessionAt = time.time()
+        channel_list = [content for key in contentIdsByContainer.keys() for item in contentIdsByContainer[key] if item['container_slug'] not in skip_slugs for content in item["contents"]]
+        channel_list = list(set(channel_list))
+        print(f'[INFO] Number of streams available: {len(channel_list)}')
+
+        group_listing = contentIdsByContainer.get("tubitv_us_linear")
+
+        groups = {}
+        for elem in group_listing:
+            if elem["container_slug"] not in skip_slugs:
+                # print(elem)
+                groups.update({elem['name']: elem['contents']})
+
+        # print(json.dumps(groups, indent=2))
+
+        with self.lock:
+            self.sessionAt = time.time()
+            self.channel_list = channel_list
+            self.group_list = groups
+
         return None
 
     def channels(self):
@@ -233,6 +248,13 @@ class Client:
                          'url': f"{unquote(elem['video_resources'][0]['manifest']['url'])}&content_id={elem.get('content_id')}",
                          'tmsid': elem.get('gracenote_id', None)}
                          for elem in self.epg_data]
+        
+        groups = self.group_list.copy()
+
+        for item in channel_list:
+            id = item.get('channel-id')
+            g_list = [key for key, values in groups.items() if id in values]
+            item.update({'group': g_list})    
 
         tubi_tmsid_url = "https://raw.githubusercontent.com/jgomez177/tubi-for-channels/main/tubi_tmsid.csv"
         tubi_custom_tmsid = 'tubi_data/tubi_custom_tmsid.csv'
@@ -274,9 +296,11 @@ class Client:
                         else entry
                         for entry in channel_list]
         
-        self.channel_cache = sorted(channel_list, key=lambda x: x['name'].lower())
+        channel_list = sorted(channel_list, key=lambda x: x['name'].lower())
+        with self.lock:
+            self.channel_cache = channel_list
         # print(f"[INFO] Channels: Number of streams available: {len(channel_list)}")
-        return self.channel_cache, error
+        return channel_list, error
     
     def read_epg(self):
         if not (self.isTimeExpired(self.sessionAt, self.session_expires_in)):

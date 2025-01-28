@@ -5,7 +5,7 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "2.04"
+version = "2.05"
 updated_date = "Jan. 27, 2025"
 
 # Retrieve the port number from env variables
@@ -94,7 +94,6 @@ def playlist(provider):
     else:
         data_group = stations
 
-
     stations = sorted(stations, key = lambda i: i.get('name', ''))
 
     if err: return err, 500
@@ -103,7 +102,7 @@ def playlist(provider):
         m3u += f"#EXTINF:-1 channel-id=\"{provider}-{s.get('channel-id')}\""
         m3u += f" tvg-id=\"{s.get('channel-id')}\""
         m3u += f" tvg-chno=\"{''.join(map(str, s.get('number', [])))}\"" if s.get('number') else ""
-        m3u += f" group-title=\"{''.join(map(str, s.get('group', [])))}\"" if s.get('group') else ""
+        m3u += f" group-title=\"{';'.join(map(str, s.get('group', [])))}\"" if s.get('group') else ""
         m3u += f" tvg-logo=\"{''.join(map(str, s.get('logo', [])))}\"" if s.get('logo') else ""
         m3u += f" tvg-name=\"{s.get('call_sign')}\"" if s.get('call_sign') else ""
         if gracenote == 'include':
