@@ -5,8 +5,8 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "2.03"
-updated_date = "Jan. 26, 2025"
+version = "2.04"
+updated_date = "Jan. 27, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -187,8 +187,6 @@ def epg_scheduler():
     print(f"[INFO] Running EPG Scheduler")
 
     try:
-        stations, err = providers[provider].channels()
-        if err: print(f"[ERROR] Channels: {error}")
         error = providers[provider].epg()
         if error:
             print(f"[ERROR] EPG: {error}")
@@ -200,7 +198,7 @@ def epg_scheduler():
 def scheduler_thread():
 
     # Define a task for this country
-    schedule.every(2).hours.do(epg_scheduler)
+    schedule.every(1).hours.do(epg_scheduler)
 
     # Run the task immediately when the thread starts
     try:
@@ -231,7 +229,7 @@ def monitor_thread():
             thread = Thread(target=thread_wrapper, daemon=True)
             thread.start()
         time.sleep(15 * 60)  # Check every 15 minutes
-        # print(f"[INFO] Checking scheduler thread for {country_code}")
+        print(f"[INFO] Checking scheduler thread")
 
 
 if __name__ == '__main__':

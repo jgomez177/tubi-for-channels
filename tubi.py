@@ -14,7 +14,7 @@ class Client:
         self.token_expires_in = 0
         self.tokenResponse = None
         self.sessionAt = 0
-        self.session_expires_in = 1209600
+        self.session_expires_in = 14400
 
         self.channel_list = []
         self.channel_cache = []
@@ -217,7 +217,7 @@ class Client:
             return self.channel_cache, None
         else:
             print("[INFO] Updating channel id list")
-            error = self.epg()
+            error = self.read_epg()
             if error: return None, error
         # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
         
@@ -226,7 +226,7 @@ class Client:
                 print(f"[Error] No Video Data for {elem.get('title', '')}")
                 elem['video_resources'] = [{"manifest": {"url": ""}}]
 
-        print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
+        # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
         channel_list = [{'channel-id': str(elem.get('content_id')),
                          'name': elem.get('title', ''),
                          'logo': elem['images'].get('thumbnail'),
@@ -326,9 +326,9 @@ class Client:
         if not self.isTimeExpired(self.sessionAt, self.session_expires_in):
             print("[INFO] Return Cached EPG")
             return None
-        
-        error = self.read_epg()
-        print("[INFO] End Read EPG")
+
+        print("[INFO] EPG: Updating Channel Data")
+        channel_cache, error = self.channels()
         if error: return error
 
         xml_file_path        = f"epg.xml"
