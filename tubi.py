@@ -110,7 +110,7 @@ class Client:
             finally:
                 # print(error)
                 # print(data)
-                print('[INFO] Close the Signin API session')
+                print('[INFO] Close the Token API session')
                 session.close()
         else:
             print("[INFO] Return Token")
@@ -230,10 +230,9 @@ class Client:
         if (not (self.isTimeExpired(self.sessionAt, self.session_expires_in)) and len(self.channel_cache) != 0):
             print("[INFO] Reading channel id list cache")
             return self.channel_cache, None
-        else:
-            print("[INFO] Updating channel id list")
-            error = self.read_epg()
-            if error: return None, error
+
+        error = self.read_epg()
+        if error: return None, error
         # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
         
         for elem in self.epg_data:
@@ -309,13 +308,11 @@ class Client:
                 print("[INFO] Returning cached EPG Data")
                 return None
         
+        print("[INFO] Updating Channel List")
+        error = self.channel_id_list()
+        if error: return error
+
         print("[INFO] Retriving EPG Data")
-
-        if len(self.channel_list ) == 0:
-            print("[INFO] Initialize channel_list")
-            error = self.channel_id_list()
-            if error: return error
-
         epg_data = []
 
         group_size = 150
@@ -332,6 +329,11 @@ class Client:
                 # r = requests.get(url, params=params, headers=headers, timeout=10)
             except Exception as e:
                 return f"read_epg Exception type Error: {type(e).__name__}"    
+            finally:
+                # print(error)
+                # print(data)
+                print('[INFO] Close the EPG API session')
+                session.close()
 
             if (response.status_code != 200):
                 return f"tubitv.com/oz/epg HTTP failure for {group} {response.status_code}: {response.text}"
