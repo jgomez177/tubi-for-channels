@@ -5,8 +5,8 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "2.06"
-updated_date = "Jan. 28, 2025"
+version = "3.00"
+updated_date = "Jan. 29, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -65,53 +65,22 @@ def index():
 
     return f"{url}<ul>{ul}</ul></div></section></body></html>"
 
-@app.route("/<provider>/token/")
+@app.route("/<provider>/token")
 def token(provider):
     # host = request.host
-    token = providers[provider].token()
-    if token is None:
-        return("Using Anonymous Access")
+    token, error = providers[provider].token()
+    if error:
+        return error
     else:
         return token
 
 @app.get("/<provider>/playlist.m3u")
 def playlist(provider):
-    gracenote = request.args.get('gracenote')
-    filter_stations = request.args.get('filtered')
-
+    args = request.args
     host = request.host
 
-    stations, err = providers[provider].channels()
-    if err: return err, 500
-    # Filter out Hidden items or items without Hidden Attribute
-    tmsid_stations = list(filter(lambda d: d.get('tmsid'), stations))
-    no_tmsid_stations = list(filter(lambda d: d.get('tmsid', "") == "" or d.get('tmsid') is None, stations))
-
-    if 'unfiltered' not in request.args and gracenote == 'include':
-        data_group = tmsid_stations
-    elif  'unfiltered' not in request.args and gracenote == 'exclude':
-        data_group = no_tmsid_stations
-    else:
-        data_group = stations
-
-    stations = sorted(stations, key = lambda i: i.get('name', ''))
-
-    if err: return err, 500
-    m3u = "#EXTM3U\r\n\r\n"
-    for s in data_group:
-        m3u += f"#EXTINF:-1 channel-id=\"{provider}-{s.get('channel-id')}\""
-        m3u += f" tvg-id=\"{s.get('channel-id')}\""
-        m3u += f" tvg-chno=\"{''.join(map(str, s.get('number', [])))}\"" if s.get('number') else ""
-        m3u += f" group-title=\"{';'.join(map(str, s.get('group', [])))}\"" if s.get('group') else ""
-        m3u += f" tvg-logo=\"{''.join(map(str, s.get('logo', [])))}\"" if s.get('logo') else ""
-        m3u += f" tvg-name=\"{s.get('call_sign')}\"" if s.get('call_sign') else ""
-        if gracenote == 'include':
-            m3u += f" tvg-shift=\"{s.get('time_shift')}\"" if s.get('time_shift') else ""
-            m3u += f" tvc-guide-stationid=\"{s.get('tmsid')}\"" if s.get('tmsid') else ""
-        m3u += f",{s.get('name') or s.get('call_sign')}\n"
-        # m3u += f"{s.get('url')}\n\n"
-        m3u += f"http://{host}/{provider}/watch/{s.get('channel-id')}\n\n"
-
+    m3u, error = providers[provider].generate_playlist(provider, args, host)
+    if error: return error, 500
     response = Response(m3u, content_type='audio/x-mpegurl')
     return (response)
 
@@ -119,41 +88,14 @@ def playlist(provider):
 def channels_json(provider):
         stations, err = providers[provider].channels()
         if err: return (err)
-        # response = Response(stations)
-        # print(stations)
         return (stations)
-
-@app.get("/<provider>/epg.json")
-def epg_json(provider):
-        epg_data, err = providers[provider].epg_json()
-        if err: return (err)
-        # response = Response(stations)
-        # print(stations)
-        return (epg_data)
-
-@app.get("/<provider>/clear")
-def channels_clear(provider):
-        err = providers[provider].clear_data()
-        if err: return (err)
-        # response = Response(stations)
-        # print(stations)
-        return ("Data Cleared")
 
 @app.route("/<provider>/watch/<id>")
 def watch(provider, id):
-    video_url = ''
-
-    stations, err = providers[provider].channels()
-    if err is not None:
-        return "Error", 500, {'X-Tuner-Error': err}
-
-    for channel in stations:
-        if channel['channel-id'] == id:
-            video_url = channel['url']
-
-    if video_url == '':
-        return "Error", 500, {'X-Tuner-Error': 'Video Stream Not Found'}
-
+    video_url, err = providers[provider].generate_video_url(id)
+    if err: return "Error", 500, {'X-Tuner-Error': err}
+    if not video_url:return "Error", 500, {'X-Tuner-Error': 'No Video Stream Detected'}
+    # print(f'[INFO] {video_url}')
     return (redirect(video_url))
 
 @app.get("/<provider>/<filename>")
@@ -200,18 +142,21 @@ def scheduler_thread():
     schedule.every(1).hours.do(epg_scheduler)
 
     # Run the task immediately when the thread starts
-    try:
-        epg_scheduler()
-    except Exception as e:
-        print(f"[ERROR] Error running initial task for: {e}")
-
-    # Continue as Scheduled
     while True:
         try:
-            schedule.run_pending()
-            time.sleep(1)
+            epg_scheduler()
         except Exception as e:
-             print(f"[ERROR] Error in scheduler thread: {e}")
+            print(f"[ERROR] Error in running scheduler, retrying: {e}")
+            continue  # Immediately retry
+
+        # Continue as Scheduled
+        while True:
+            try:
+                schedule.run_pending()
+                time.sleep(1)
+            except Exception as e:
+                 print(f"[ERROR] Error in scheduler thread: {e}")
+                 break # Restart the loop and rerun epg_scheduler
 
 # Function to monitor and restart the thread if needed
 def monitor_thread():
@@ -234,7 +179,7 @@ def monitor_thread():
 if __name__ == '__main__':
     try:
         Thread(target=monitor_thread, daemon=True).start()
-        print(f"⇨ http server started on [::]:{port}")
+        print(f"[INFO] ⇨ http server started on [::]:{port}")
         WSGIServer(('', port), app, log=None).serve_forever()
     except OSError as e:
         print(str(e))
