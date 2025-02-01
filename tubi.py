@@ -1,4 +1,4 @@
-import json, os, uuid, threading, requests, time, base64, binascii, pytz, gzip, csv
+import json, os, uuid, threading, requests, time, base64, binascii, pytz, gzip, csv, os
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -160,8 +160,12 @@ class Client:
 
 
     def use_anonymous_creds(self):
-        print('[INFO] Using anonymous credentials')
-        error = None
+        # print('[INFO] Using anonymous credentials')
+        error = '[ERROR] Anonymous Credentials Not Functioning. Please use username/password credentials'
+        if error:
+            print(error)
+            os._exit(-999)  
+
         challenge = self.generate_challenge_text()
         device_id = self.device_id
         headers = self.headers.copy()
