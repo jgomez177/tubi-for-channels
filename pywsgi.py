@@ -5,8 +5,8 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "3.00"
-updated_date = "Jan. 29, 2025"
+version = "3.00b"
+updated_date = "Feb 1, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -23,47 +23,33 @@ providers = {
     provider: importlib.import_module(provider).Client(),
 }
 
-url = f'<!DOCTYPE html>\
+url_main = f'<!DOCTYPE html>\
         <html>\
           <head>\
             <meta charset="utf-8">\
             <meta name="viewport" content="width=device-width, initial-scale=1">\
-            <title>{provider.capitalize()} Playlist</title>\
+            <title>Playlist</title>\
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">\
-            <style>\
-              ul{{\
-                margin-bottom: 10px;\
-              }}\
-            </style>\
           </head>\
           <body>\
           <section class="section">\
             <div class="container">\
-              <h1 class="title">\
-                {provider.capitalize()} Playlist\
+              <h1 class="title is-2">\
+                Playlist\
                 <span class="tag">v{version}</span>\
+                <span class="tag">Last Updated: {updated_date}</span>\
               </h1>\
-              <p class="subtitle">\
-                Last Updated: {updated_date}\
-              '
+          </div>'
 
 @app.route("/")
 def index():
     host = request.host
-    ul = f'<p class="subtitle"></p><ul>'
-    pl = f"http://{host}/{provider}/playlist.m3u"
-    ul += f"<li>{provider.upper()}: <a href='{pl}'>{pl}</a></li>\n"
-    pl = f"http://{host}/{provider}/playlist.m3u?gracenote=include"
-    ul += f"<li>{provider.upper()} Gracenote Playlist: <a href='{pl}'>{pl}</a></li>\n"
-    pl = f"http://{host}/{provider}/playlist.m3u?gracenote=exclude"
-    ul += f"<li>{provider.upper()} EPG Only Playlist: <a href='{pl}'>{pl}</a></li>\n"
-    pl = f"http://{host}/{provider}/epg.xml"
-    ul += f"<li>{provider.upper()} EPG: <a href='{pl}'>{pl}</a></li>\n"
-    pl = f"http://{host}/{provider}/epg.xml.gz"
-    ul += f"<li>{provider.upper()} EPG GZ: <a href='{pl}'>{pl}</a></li>\n"
-    ul += f"<br>\n"
-
-    return f"{url}<ul>{ul}</ul></div></section></body></html>"
+    body = '<div class="container">'
+    for pvdr in providers:
+        body_text = providers[pvdr].body_text(pvdr, host)
+        body += body_text
+    body += "</div></section>"
+    return f"{url_main}{body}</body></html>"
 
 @app.route("/<provider>/token")
 def token(provider):

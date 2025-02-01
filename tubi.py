@@ -1,6 +1,9 @@
 import json, os, uuid, threading, requests, time, base64, binascii, pytz, gzip, csv, os
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from bs4 import BeautifulSoup
+import re
+from urllib.parse import unquote
 
 class Client:
     def __init__(self):
@@ -64,6 +67,22 @@ class Client:
             # print(f"[INFO] Device ID: {device_id}")
             with self.lock:
                 self.device_id = device_id
+
+    def body_text(self, provider, host):
+        body_text = f'<p class="title is-4">{provider.capitalize()} Playlist</p>'
+        ul = f'<p class="subtitle is-6">'
+        pl = f"http://{host}/{provider}/playlist.m3u"
+        ul += f"{provider.upper()}: <a href='{pl}'>{pl}</a><br>"
+        pl = f"http://{host}/{provider}/playlist.m3u?gracenote=include"
+        ul += f"{provider.upper()} Gracenote Playlist: <a href='{pl}'>{pl}</a><br>"
+        pl = f"http://{host}/{provider}/playlist.m3u?gracenote=exclude"
+        ul += f"{provider.upper()} EPG Only Playlist: <a href='{pl}'>{pl}</a><br>"
+        pl = f"http://{host}/{provider}/epg.xml"
+        ul += f"{provider.upper()} EPG: <a href='{pl}'>{pl}</a><br>"
+        pl = f"http://{host}/{provider}/epg.xml.gz"
+        ul += f"{provider.upper()} EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
+        ul += f"<br>"
+        return(f'{body_text}{ul}')
 
     def call_token_api(self, json_data, local_headers, isAnonymous):
         if isAnonymous:
@@ -164,7 +183,7 @@ class Client:
         error = '[ERROR] Anonymous Credentials Not Functioning. Please use username/password credentials'
         if error:
             print(error)
-            os._exit(-999)  
+            # os._exit(-999)  
 
         challenge = self.generate_challenge_text()
         device_id = self.device_id
@@ -280,7 +299,137 @@ class Client:
 
         return 
 
+    def replace_quotes(self, match):
+        return '"' + match.group(1).replace('"', r'\"') + '"'
 
+    def channel_id_list_anon(self):
+        url = "https://tubitv.com/live"
+        params = {}
+        error = None
+        headers = self.headers
+
+        try:
+            session = requests.Session()
+            response = session.get(url, params=params, headers=headers)
+        except Exception as e:
+            error = f"read_from_tubi Exception type Error: {type(e).__name__}"
+        finally:
+            print('[INFO] Close the Signin API session')
+            session.close()
+
+        if error: return None, error
+        if (response.status_code != 200):
+            return (f"tubitv.com/live HTTP failure {response.status_code}: {response.text}")
+        
+        html_content  = response.text
+
+        # Parse the HTML
+        soup = BeautifulSoup(html_content, "html.parser")
+
+        # Find all <script> tags
+        script_tags = soup.find_all("script")
+
+        # Look for the script starting with "window.__data"
+        target_script = None
+        for script in script_tags:
+            if script.string and script.string.strip().startswith("window.__data"):
+                target_script = script.string
+                break
+
+        if target_script is None:
+            return None, f"Error: No Data located"
+        
+        # Extract JSON part from the string
+        # Find the start and end positions of the JSON part
+        start_index = target_script.find("{")
+        end_index = target_script.rfind("}") + 1
+
+        # Extract the JSON part
+        json_string = target_script[start_index:end_index]
+
+        # Replace 'undefined' with 'null' to make it valid JSON
+        json_string = re.sub(r'\bundefined\b', 'null', json_string)
+
+        # More corrections for valid JSON
+        pattern = r'(new\s+Date\("[^"]*"\)|read\s+Date\("[^"]*"\))'
+        data = re.sub(pattern, self.replace_quotes, json_string)
+        # print(new_text)
+
+        try:
+            data_json = json.loads(data)
+        except Exception as e:
+            return f"read_from_tubi json Exception type Error: {type(e).__name__}"
+
+        epg = data_json.get('epg')
+        contentIdsByContainer = epg.get('contentIdsByContainer')
+        skip_slugs = ['favorite_linear_channels', 'recommended_linear_channels', 'featured_channels', 'recently_added_channels']
+        channel_list = [content for key in contentIdsByContainer.keys() for item in contentIdsByContainer[key] if item['container_slug'] not in skip_slugs for content in item["contents"]]
+        channel_list = list(set(channel_list))
+        print(f'[INFO] Number of streams available: {len(channel_list)}')
+
+        group_listing = contentIdsByContainer.get("tubitv_us_linear")
+
+        groups = {}
+        for elem in group_listing:
+            if elem["container_slug"] not in skip_slugs:
+                # print(elem)
+                groups.update({elem['name']: elem['contents']})
+
+        # print(json.dumps(groups, indent=2))
+
+        return channel_list, groups, None
+
+    def read_epg_anon(self):
+        print("[INFO] Updating Anon Channel List")
+        channel_id_list, groups, error = self.channel_id_list_anon()
+        if error: return error
+
+        print("[INFO] Retriving EPG Data")
+        epg_data = []
+
+        group_size = 150
+        grouped_id_values = [channel_id_list[i:i + group_size] for i in range(0, len(channel_id_list), group_size)]
+
+        for group in grouped_id_values:
+            session = requests.Session()
+            params = {"content_id": ','.join(map(str, group))}
+
+
+            try:
+                print("[INFO] Anon EPG API Call")
+                response = session.get(f'https://tubitv.com/oz/epg/programming', params=params)
+                # r = requests.get(url, params=params, headers=headers, timeout=10)
+            except Exception as e:
+                return f"read_epg Exception type Error: {type(e).__name__}"    
+            finally:
+                print('[INFO] Close the EPG API session')
+                session.close()
+
+            if (response.status_code != 200):
+                return None, f"tubitv.com/oz/epg HTTP failure for {group} {response.status_code}: {response.text}"
+
+            js = response.json()
+            epg_data.extend(js.get('rows',[]))
+
+        for elem in epg_data:
+            if elem.get('video_resources') == []:
+                print(f"[Error] No Video Data for {elem.get('title', '')}")
+                elem['video_resources'] = [{"manifest": {"url": ""}}]
+
+        # print(f"[INFO] Channels: Available EPG data: {len(self.epg_data)}")
+        channel_list = [{'channel-id': str(elem.get('content_id')),
+                         'name': elem.get('title', ''),
+                         'logo': elem['images'].get('thumbnail'),
+                         'url': f"{unquote(elem['video_resources'][0]['manifest']['url'])}&content_id={elem.get('content_id')}",
+                         'tmsid': elem.get('gracenote_id', None)}
+                         for elem in epg_data]
+
+        for item in channel_list:
+            id = item.get('channel-id')
+            g_list = [key for key, values in groups.items() if id in values]
+            item.update({'group': g_list})    
+
+        return channel_list, epg_data, None
 
     def channels(self):
         channel_list = self.channel_list
@@ -293,6 +442,28 @@ class Client:
 
         local_headers = self.headers
         local_device_id = self.device_id
+        local_user = self.user
+
+        if not local_user:
+            print("[NOTIFICATION] Reverting code for Anonymous Sign In")
+            sessionAt = time.time()
+            channel_list, epg_data, error = self.read_epg_anon()
+            if error:
+                return None, error
+
+            # Create a lookup dictionary for channel_list
+            channel_dict = {station.get('channel-id'): station for station in channel_list}
+            self.update_tmsid(channel_dict)
+
+            with self.lock:
+                self.sessionAt = sessionAt
+                self.session_expires_in = 20000
+                self.channel_list = channel_list
+                self.epg_data = epg_data
+
+            print("[NOTIFICATION] End Code Reversion")
+            return channel_list, None
+
         bearer, error = self.token()
         if error: return None, error
         local_headers.update({'authorization': f'Bearer {bearer}',
@@ -346,7 +517,6 @@ class Client:
         channel_id_list = list(set(channel_id_list))
         #print(f'[INFO] Number of streams available: {len(channel_id_list)}')
 
-
         groups = {}
         for elem in containers:
             if elem["container_slug"] not in skip_slugs:
@@ -384,12 +554,8 @@ class Client:
     
             if tmsid and cid in channel_dict:
                 channel_dict[cid].update({'tmsid': tmsid}) # Updates channel_list in place
-
         
         self.update_tmsid(channel_dict)
-
-
-
 
         # print(json.dumps(channel_list, indent=2)) 
         with self.lock:
