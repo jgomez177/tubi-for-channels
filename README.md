@@ -5,6 +5,11 @@ Current version: **3.00b**
 # About
 This takes Tubi Live TV Channels and generates an M3U playlist and EPG XMLTV file.
 
+If you like this and other linear containers for Channels that I have created, please consider supporting my work.
+
+[![](https://pics.paypal.com/00/s/MDY0MzZhODAtNGI0MC00ZmU5LWI3ODYtZTY5YTcxOTNlMjRm/file.PNG)](https://www.paypal.com/donate/?hosted_button_id=BBUTPEU8DUZ6J)
+
+
 # Changes
  - Version 3.00b: 
     - Rollback of code specifically for no credentials.
@@ -83,8 +88,3 @@ Example
     400000011,TV One Crime & Justice,145680,
 
 
-***
-
-If you like this and other linear containers for Channels that I have created, please consider supporting my work.
-
-[![](https://pics.paypal.com/00/s/MDY0MzZhODAtNGI0MC00ZmU5LWI3ODYtZTY5YTcxOTNlMjRm/file.PNG)](https://www.paypal.com/donate/?hosted_button_id=BBUTPEU8DUZ6J)
