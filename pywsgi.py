@@ -5,7 +5,7 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "3.00c"
+version = "3.00d"
 updated_date = "Feb 9, 2025"
 
 # Retrieve the port number from env variables
@@ -117,8 +117,8 @@ def fox_super_bowl_lix_watch(provider, id):
 @app.get("/<provider>/<filename>")
 def epg_xml(provider, filename):
     
-    ALLOWED_EPG_FILENAMES = ['epg.xml']
-    ALLOWED_GZ_FILENAMES = ['epg.xml.gz']
+    ALLOWED_EPG_FILENAMES = ['epg.xml', 'sb-epg.xml']
+    ALLOWED_GZ_FILENAMES = ['epg.xml.gz', 'sb-epg.xml.gz']
 
     try:
         if filename not in ALLOWED_EPG_FILENAMES and filename not in ALLOWED_GZ_FILENAMES:
@@ -143,6 +143,7 @@ def epg_xml(provider, filename):
 def epg_scheduler():
     print(f"[INFO] Running EPG Scheduler")
 
+    
     try:
         error = providers[provider].epg()
         if error:
@@ -150,7 +151,7 @@ def epg_scheduler():
     except Exception as e:
         print(f"[ERROR] Exception in EPG Scheduler : {e}")
     print(f"[INFO] EPG Scheduler Complete")
-
+    
     try:
         sb_channels, error = providers[provider].fox_super_bowl_lix()
         if error:

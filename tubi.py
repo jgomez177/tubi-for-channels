@@ -83,7 +83,10 @@ class Client:
         ul += f"{provider.upper()} EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
         pl = f"http://{host}/{provider}/super-bowl/playlist.m3u"
         ul += f"{provider.upper()} SUPER BOWL LIX: <a href='{pl}'>{pl}</a><br>"
-
+        pl = f"http://{host}/{provider}/sb-epg.xml"
+        ul += f"{provider.upper()} SUPER BOWL LIX EPG: <a href='{pl}'>{pl}</a><br>"
+        pl = f"http://{host}/{provider}/sb-epg.xml.gz"
+        ul += f"{provider.upper()} SUPER BOWL LIX EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
         ul += f"<br>"
 
 
@@ -597,6 +600,8 @@ class Client:
         # Set your desired timezone, for example, 'UTC'
         desired_timezone = pytz.timezone('UTC')
 
+        # print(json.dumps(local_epg_data[0], indent = 2))
+
         if self.user:
             g_name = self.user
         else:
@@ -859,6 +864,10 @@ class Client:
                 'name': name,
                 'id': id
             })
+
+        print('[INFO] Call save_sb_xml')
+        self.save_sb_xml(resp)
+
         return (sb_channels, error)
     
     def generate_sb_playlist(self, provider, args, host):
@@ -975,3 +984,111 @@ class Client:
         else:
             return None, 'No playbackUrl Found'
             # return resp, None
+
+
+    def save_sb_xml(self, resp):
+        xml_file_path        = f"sb-epg.xml"
+        compressed_file_path = f"{xml_file_path}.gz"
+
+        channels_resp = resp.copy()
+
+        # Set your desired timezone, for example, 'UTC'
+        desired_timezone = pytz.timezone('UTC')
+
+        # print(json.dumps(channels_resp, indent = 2))
+
+        if self.user:
+            g_name = self.user
+        else:
+            g_name = ''
+        root = ET.Element("tv", attrib={"generator-info-name": g_name, "generated-ts": ""})
+
+        # stations = sorted(local_epg_data, key = lambda i: i.get('title', ''))
+
+        for station in channels_resp:
+            asset = station.get('asset')
+            listing = asset.get('listing')
+            channel_id = str(listing.get('tubi_id'))
+            # print(channel_id)
+            # channel_id = str(station["id"])
+            # print(json.dumps(station, indent =2 ))
+
+            channel = ET.SubElement(root, "channel", attrib={"id": channel_id})
+            display_name = ET.SubElement(channel, "display-name")
+            display_name.text = asset["headline"]
+            # icon = ET.SubElement(channel, "icon", attrib={"src": station["images"]['thumbnail'][0]})
+
+            programme = ET.SubElement(root, "programme", attrib={"channel": channel_id,
+                                                                 "start": datetime.fromisoformat(listing["startDate"].replace('Z', '+00:00')).strftime("%Y%m%d%H%M%S %z"),
+                                                                 "stop": datetime.fromisoformat(listing["endDate"].replace('Z', '+00:00')).strftime("%Y%m%d%H%M%S %z")})
+
+            if asset.get('headline'):
+                title = ET.SubElement(programme, "title")
+                title.text = asset.get('title','')
+
+            if asset.get('seriesName'):
+                sub_title = ET.SubElement(programme, "sub-title")
+                sub_title.text = asset.get('seriesName','')
+
+            if asset.get('seasonNumber') and asset.get('seasonNumber') != '':
+                episode_num_onscreen = ET.SubElement(programme, "episode-num", attrib={"system": "onscreen"})
+                if asset.get('episode_number'):
+                    episode_num_onscreen.text = f"S{asset.get('seasonNumber', 0):02d}E{asset.get('episode_number', 0):02d}"
+                else:
+                    episode_num_onscreen.text = f"Season {asset.get('seasonNumber', 0)}"
+
+            if asset.get("longDescription"):
+                desc = ET.SubElement(programme, "desc")
+                desc.text = asset.get('longDescription','')
+
+            image_list = []
+            image_list.append(asset['seriesImage'])
+
+            art = next((item for item in image_list), '')
+            if art != '':    
+                icon_programme = ET.SubElement(programme, "icon", attrib={"src": art})
+
+        # Sort the <programme> elements by channel and then by start
+        # print('[DEBUG] here too')
+        sorted_programmes = sorted(root.findall('.//programme'), key=lambda x: (x.get('channel'), x.get('start')))
+
+        # Clear the existing <programme> elements in the root
+        for child in root.findall('.//programme'):
+            root.remove(child)
+
+        # Append the sorted <programme> elements to the root
+        for element in sorted_programmes:
+            root.append(element)
+
+        # Create an ElementTree object
+        tree = ET.ElementTree(root)
+        ET.indent(tree, '  ')
+
+        # Create a DOCTYPE declaration
+        doctype = '<!DOCTYPE tv SYSTEM "xmltv.dtd">'
+
+        # Concatenate the XML and DOCTYPE declarations in the desired order
+        xml_declaration = '<?xml version=\'1.0\' encoding=\'utf-8\'?>'
+
+        output_content = xml_declaration + '\n' + doctype + '\n' + ET.tostring(root, encoding='utf-8').decode('utf-8')
+
+        print("[INFO] Writing SB XML")
+
+        # Write the concatenated content to the output file
+        try:
+            with open(xml_file_path, "w", encoding='utf-8') as f:
+                f.write(output_content)
+        except:
+            return "[ERROR] Error writing XML"
+
+        with open(xml_file_path, 'r') as file:
+            xml_data = file.read()
+
+        # Compress the XML file
+        with open(xml_file_path, 'rb') as file:
+            with gzip.open(compressed_file_path, 'wb') as compressed_file:
+                compressed_file.writelines(file)
+
+
+        # print("[INFO] End EPG")
+        return None

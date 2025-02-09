@@ -19,6 +19,8 @@ Site 2
 
 
 # Changes
+ - Version 3.00d: 
+    - Super Bowl LIX EPG.
  - Version 3.00c: 
     - Super Bowl LIX support.
  - Version 3.00b: 
