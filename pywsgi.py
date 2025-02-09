@@ -5,8 +5,8 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "3.00b"
-updated_date = "Feb 1, 2025"
+version = "3.00c"
+updated_date = "Feb 9, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -84,6 +84,36 @@ def watch(provider, id):
     # print(f'[INFO] {video_url}')
     return (redirect(video_url))
 
+
+@app.route("/<provider>/super-bowl/epg")
+def fox_super_bowl_lix(provider):
+    stations, err = providers[provider].fox_super_bowl_lix()
+    if err: return (err)
+    return (stations)
+
+@app.get("/<provider>/super-bowl/playlist.m3u")
+def fox_super_bowl_lix_playlist(provider):
+    args = request.args
+    host = request.host
+
+    m3u, error = providers[provider].generate_sb_playlist(provider, args, host)
+    if error: return error, 500
+    response = Response(m3u, content_type='audio/x-mpegurl')
+    return (response)
+
+@app.route("/<provider>/watch/super-bowl/<id>")
+def fox_super_bowl_lix_watch(provider, id):
+    video_url, err = providers[provider].generate_super_bowl_video_url(id)
+    print(f'[INFO] {video_url}')
+    print(err)
+
+
+    if err: return "Error", 500, {'X-Tuner-Error': err}
+    if not video_url:return "Error", 500, {'X-Tuner-Error': 'No Video Stream Detected'}
+    print(f'[INFO] {video_url}')
+    return (redirect(video_url))
+    # return (video_url)
+
 @app.get("/<provider>/<filename>")
 def epg_xml(provider, filename):
     
@@ -120,6 +150,16 @@ def epg_scheduler():
     except Exception as e:
         print(f"[ERROR] Exception in EPG Scheduler : {e}")
     print(f"[INFO] EPG Scheduler Complete")
+
+    try:
+        sb_channels, error = providers[provider].fox_super_bowl_lix()
+        if error:
+            print(f"[ERROR] Super Bowl LIX: {error}")
+    except Exception as e:
+        print(f"[ERROR] Exception in Super Bowl LIX Scheduler : {e}")
+    print(f"[INFO] Super Bowl LIX Scheduler Complete")
+
+    
 
 # Define a function to run the scheduler in a separate thread
 def scheduler_thread():

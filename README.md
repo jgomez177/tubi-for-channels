@@ -19,6 +19,8 @@ Site 2
 
 
 # Changes
+ - Version 3.00c: 
+    - Super Bowl LIX support.
  - Version 3.00b: 
     - Rollback of code specifically for no credentials.
  - Version 3.00: 

@@ -81,7 +81,12 @@ class Client:
         ul += f"{provider.upper()} EPG: <a href='{pl}'>{pl}</a><br>"
         pl = f"http://{host}/{provider}/epg.xml.gz"
         ul += f"{provider.upper()} EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
+        pl = f"http://{host}/{provider}/super-bowl/playlist.m3u"
+        ul += f"{provider.upper()} SUPER BOWL LIX: <a href='{pl}'>{pl}</a><br>"
+
         ul += f"<br>"
+
+
         return(f'{body_text}{ul}')
 
     def call_token_api(self, json_data, local_headers, isAnonymous):
@@ -794,3 +799,179 @@ class Client:
         url = channel_dict.get(id, {}).get('url')
         # print(f'[INFO] {url}')
         return url, None
+
+
+    def fox_super_bowl_lix(self):
+        error = None
+        headers = {
+            'accept': '*/*',
+            'accept-language': 'en-US,en;q=0.9',
+            'origin': 'https://tubitv.com',
+            'priority': 'u=1, i',
+            'referer': 'https://tubitv.com/',
+            'sec-ch-ua': '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'cross-site',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
+            'x-api-key': 'tubi_web',
+        }
+
+        url = 'https://prod.api.haw.digitalvideoplatform.com/v3.0/listings'
+
+        # response = requests.get('https://prod.api.haw.digitalvideoplatform.com/v3.0/listings', headers=headers)    
+
+
+        try:
+            session = requests.Session()
+            response = session.get(url, headers=headers)
+        except requests.ConnectionError as e:
+            error = f"Connection Error. {str(e)}"
+        finally:
+            session.close()
+
+        if error:
+            print (f'[ERROR] {error}')
+            return None, error
+
+        if response.status_code != 200:
+            print(f"[ERROR] HTTP: {response.status_code}: {response.text}")
+            return None, response.text
+        resp = response.json()
+
+        #print()
+        sb_channels = []
+
+        for elem in resp:
+            asset = elem.get('asset', {})
+            listing = asset.get('listing', {})
+            channel_id = listing.get('tubi_id')
+            call_sign = listing.get('callSign')
+            name = asset.get('name')
+            series_name = asset.get('seriesName')
+            id = listing.get('id')
+            sb_channels.append({
+                'channel-id': channel_id,
+                'call_sign': call_sign,
+                'series_name': series_name,
+                'name': name,
+                'id': id
+            })
+        return (sb_channels, error)
+    
+    def generate_sb_playlist(self, provider, args, host):
+        error = None
+        gracenote = args.get('gracenote')
+        filter_stations = args.get('filtered')
+
+        stations, error = self.fox_super_bowl_lix()
+        if error: return None, error
+
+        # Filter out Hidden items or items without Hidden Attribute
+        tmsid_stations = list(filter(lambda d: d.get('tmsid'), stations))
+        no_tmsid_stations = list(filter(lambda d: d.get('tmsid', "") == "" or d.get('tmsid') is None, stations))
+
+        if 'unfiltered' not in args and gracenote == 'include':
+            data_group = tmsid_stations
+        elif  'unfiltered' not in args and gracenote == 'exclude':
+            data_group = no_tmsid_stations
+        else:
+            data_group = stations
+
+        data_group = sorted(data_group, key = lambda i: i.get('name', ''))
+
+        m3u = "#EXTM3U\r\n\r\n"
+        for s in data_group:
+            if s.get('needs_login'):
+                print(f'[INFO] Skipping {s.get("name")}: Requires Login')
+            else:
+                m3u += f"#EXTINF:-1 channel-id=\"{provider}-{s.get('channel-id')}\""
+                m3u += f" tvg-id=\"{s.get('channel-id')}\""
+                m3u += f" tvg-chno=\"{''.join(map(str, s.get('number', [])))}\"" if s.get('number') else ""
+                m3u += f" group-title=\"{';'.join(map(str, s.get('group', [])))}\"" if s.get('group') else ""
+                m3u += f" tvg-logo=\"{''.join(map(str, s.get('logo', [])))}\"" if s.get('logo') else ""
+                m3u += f" tvg-name=\"{s.get('id')}\"" if s.get('id') else ""
+                if gracenote == 'include':
+                    m3u += f" tvg-shift=\"{s.get('time_shift')}\"" if s.get('time_shift') else ""
+                    m3u += f" tvc-guide-stationid=\"{s.get('tmsid')}\"" if s.get('tmsid') else ""
+                m3u += f",{s.get('series_name') or s.get('name')}\n"
+                # m3u += f"{s.get('url')}\n\n"
+                m3u += f"http://{host}/{provider}/watch/super-bowl/{s.get('id')}\n\n"
+
+        return m3u, error
+
+
+    def generate_super_bowl_video_url(self, id):
+        error = None
+        headers = {
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'en-US,en;q=0.9',
+            'authorization': 'Bearer',
+            'content-type': 'application/json',
+            'origin': 'https://tubitv.com',
+            'priority': 'u=1, i',
+            'referer': 'https://tubitv.com/',
+            'sec-ch-ua': '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'cross-site',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
+            'x-access-token': 'Bearer',
+            'x-api-key': 'tubi_web',
+        }
+
+        bearer, error = self.token()
+        if error: return None, error
+        headers.update({'authorization': f'Bearer {bearer}'})
+        print(f'[INFO] ID is {id}')
+
+        json_data = {
+            'asset': {
+                'id': id,
+            },
+            'stream': {
+                'type': 'live',
+            },
+            'device': {
+                'capabilities': [
+                    'drm/widevine',
+                ],
+            },
+        }
+
+        # response = requests.post('https://prod.api.haw.digitalvideoplatform.com/v3.0/watchlive', headers=headers, json=json_data)
+
+        url = 'https://prod.api.haw.digitalvideoplatform.com/v3.0/watchlive'
+
+        try:
+            session = requests.Session()
+            response = session.post(url, headers=headers, json=json_data)
+        except requests.ConnectionError as e:
+            error = f"Connection Error. {str(e)}"
+        finally:
+            session.close()
+
+        if error:
+            print (f'[ERROR] {error}')
+            return None, error
+
+        if response.status_code != 200:
+            print(f"[ERROR] HTTP generate_super_bowl_video_url: {response.status_code}: {response.text}")
+            return None, response.status_code
+        
+        resp = response.json()
+
+        asset = resp.get('asset', {})
+        stream = resp.get('stream', {})
+        playbackUrl = stream.get('playbackUrl')
+        print(f'[INFO] {playbackUrl}')
+
+        if playbackUrl:
+            return playbackUrl, None
+        else:
+            return None, 'No playbackUrl Found'
+            # return resp, None
