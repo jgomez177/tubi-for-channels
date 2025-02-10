@@ -5,8 +5,8 @@ import os, importlib, schedule, time
 from gevent import monkey
 monkey.patch_all()
 
-version = "3.00d"
-updated_date = "Feb 9, 2025"
+version = "3.01"
+updated_date = "Feb 10, 2025"
 
 # Retrieve the port number from env variables
 # Fallback to default if invalid or unspecified
@@ -152,13 +152,13 @@ def epg_scheduler():
         print(f"[ERROR] Exception in EPG Scheduler : {e}")
     print(f"[INFO] EPG Scheduler Complete")
     
-    try:
-        sb_channels, error = providers[provider].fox_super_bowl_lix()
-        if error:
-            print(f"[ERROR] Super Bowl LIX: {error}")
-    except Exception as e:
-        print(f"[ERROR] Exception in Super Bowl LIX Scheduler : {e}")
-    print(f"[INFO] Super Bowl LIX Scheduler Complete")
+    # try:
+    #     sb_channels, error = providers[provider].fox_super_bowl_lix()
+    #     if error:
+    #         print(f"[ERROR] Super Bowl LIX: {error}")
+    # except Exception as e:
+    #     print(f"[ERROR] Exception in Super Bowl LIX Scheduler : {e}")
+    # print(f"[INFO] Super Bowl LIX Scheduler Complete")
 
     
 

@@ -81,15 +81,13 @@ class Client:
         ul += f"{provider.upper()} EPG: <a href='{pl}'>{pl}</a><br>"
         pl = f"http://{host}/{provider}/epg.xml.gz"
         ul += f"{provider.upper()} EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
-        pl = f"http://{host}/{provider}/super-bowl/playlist.m3u"
-        ul += f"{provider.upper()} SUPER BOWL LIX: <a href='{pl}'>{pl}</a><br>"
-        pl = f"http://{host}/{provider}/sb-epg.xml"
-        ul += f"{provider.upper()} SUPER BOWL LIX EPG: <a href='{pl}'>{pl}</a><br>"
-        pl = f"http://{host}/{provider}/sb-epg.xml.gz"
-        ul += f"{provider.upper()} SUPER BOWL LIX EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
+        # pl = f"http://{host}/{provider}/super-bowl/playlist.m3u"
+        # ul += f"{provider.upper()} SUPER BOWL LIX: <a href='{pl}'>{pl}</a><br>"
+        # pl = f"http://{host}/{provider}/sb-epg.xml"
+        # ul += f"{provider.upper()} SUPER BOWL LIX EPG: <a href='{pl}'>{pl}</a><br>"
+        # pl = f"http://{host}/{provider}/sb-epg.xml.gz"
+        # ul += f"{provider.upper()} SUPER BOWL LIX EPG GZ: <a href='{pl}'>{pl}</a><br></p>"
         ul += f"<br>"
-
-
         return(f'{body_text}{ul}')
 
     def call_token_api(self, json_data, local_headers, isAnonymous):

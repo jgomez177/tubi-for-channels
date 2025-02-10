@@ -1,6 +1,6 @@
 # Tubi for Channels
 
-Current version: **3.00d**
+Current version: **3.01**
 
 # About
 This takes Tubi Live TV Channels and generates an M3U playlist and EPG XMLTV file.
@@ -19,6 +19,7 @@ Site 2
 
 
 # Changes
+ - Verion 3.01: Rolling back SB LIX
  - Version 3.00d: 
     - Super Bowl LIX EPG.
  - Version 3.00c: 
