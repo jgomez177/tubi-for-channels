@@ -452,7 +452,6 @@ class Client:
 
         if not local_user:
             print("[NOTIFICATION] Reverting code for Anonymous Sign In")
-            sessionAt = time.time()
             channel_list, epg_data, error = self.read_epg_anon()
             if error:
                 return None, error
@@ -461,6 +460,7 @@ class Client:
             channel_dict = {station.get('channel-id'): station for station in channel_list}
             self.update_tmsid(channel_dict)
 
+            sessionAt = time.time()
             with self.lock:
                 self.sessionAt = sessionAt
                 self.session_expires_in = 20000
@@ -485,7 +485,6 @@ class Client:
         url = 'https://tensor-cdn.production-public.tubi.io/api/v2/epg'
 
         # print(json.dumps(local_headers, indent =2))
-        sessionAt = time.time()
 
         try:
             session = requests.Session()
@@ -564,6 +563,7 @@ class Client:
         self.update_tmsid(channel_dict)
 
         # print(json.dumps(channel_list, indent=2)) 
+        sessionAt = time.time()
         with self.lock:
             self.sessionAt = sessionAt
             self.session_expires_in = int(resp.get("valid_duration"))
@@ -604,7 +604,7 @@ class Client:
             g_name = self.user
         else:
             g_name = ''
-        root = ET.Element("tv", attrib={"generator-info-name": g_name, "generated-ts": ""})
+        root = ET.Element("tv", attrib={"generator-info-name": "", "generated-ts": g_name})
 
         stations = sorted(local_epg_data, key = lambda i: i.get('title', ''))
 
@@ -661,6 +661,8 @@ class Client:
                 compressed_file.writelines(file)
 
         # print("[INFO] End EPG")
+        with open("epgdata.json", 'w') as file:
+            json.dump(local_epg_data, file, indent=2)
         return None
 
 
@@ -671,22 +673,48 @@ class Client:
 
         if program_data.get('title'):
             title = ET.SubElement(programme, "title")
-            title.text = program_data.get('title','')
+            titleText = program_data.get('title','')
+            title.text = titleText            
 
         if program_data.get('episode_title'):
-            sub_title = ET.SubElement(programme, "sub-title")
-            sub_title.text = program_data.get('episode_title','')
+            subtitleText = f"{program_data.get('episode_title')}"
+        else:
+            subtitleText = f"{titleText} "
+
+        if subtitleText == titleText:
+            subtitleText = f"{titleText} "
+
+        sub_title = ET.SubElement(programme, "sub-title")
+        sub_title.text = subtitleText
 
         if program_data.get('season_number') and program_data.get('season_number') != '':
             episode_num_onscreen = ET.SubElement(programme, "episode-num", attrib={"system": "onscreen"})
+            episode_num_xmltvns  = ET.SubElement(programme, "episode-num", attrib={"system": "xmltv_ns"})
             if program_data.get('episode_number'):
                 episode_num_onscreen.text = f"S{program_data.get('season_number', 0):02d}E{program_data.get('episode_number', 0):02d}"
+                episode_num_xmltvns.text = f"{program_data.get('season_number', 1) - 1:02d}.{program_data.get('episode_number', 1) - 1:02d}"
             else:
                 episode_num_onscreen.text = f"Season {program_data.get('season_number', 0)}"
+                episode_num_xmltvns.text = f"{program_data.get('season_number', 1) - 1:02d}"
+        #else:
+            #episode_num_onscreen = ET.SubElement(programme, "episode-num", attrib={"system": "onscreen"})
+            #episode_num_onscreen.text = "."
 
-        if program_data.get("description", "") != '':
+        if program_data.get("description"):
             desc = ET.SubElement(programme, "desc")
             desc.text = program_data.get('description','')
+
+        ratings = program_data.get("ratings")
+        if len(ratings) > 0:
+            systemValue = ratings[0].get('system')
+            codeValue = ratings[0].get('code')
+            rating = ET.SubElement(programme, "rating")
+            value = ET.SubElement(rating, "value")
+            value.text = codeValue
+            if systemValue.lower() == 'mpaa':
+                if codeValue.upper() != 'NR':
+                    category = ET.SubElement(programme, "category")
+                    category.text = 'Movie'
 
         image_list = []
         image_list.extend(program_data['images'].get('landscape', []))
